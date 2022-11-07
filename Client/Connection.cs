@@ -11,22 +11,22 @@ using System.Threading.Tasks;
 namespace Client;
 public class Connection : IDisposable
 {
-    private readonly TcpClient _client;
-    private readonly NetworkStream _stream;
-    private readonly EndPoint _remoteEndPoint;
-    private readonly Task _readingTask;
-    private readonly Task _writingTask;
-    private readonly Channel<string> _channel;
+    private readonly TcpClient client;
+    private readonly NetworkStream stream;
+    private readonly EndPoint remoteEndPoint;
+    private readonly Task readingTask;
+    private readonly Task writingTask;
+    private readonly Channel<string> channel;
     bool disposed;
 
     public Connection(TcpClient client)
     {
-        _client = client;
-        _stream = client.GetStream();
-        _remoteEndPoint = client.Client.RemoteEndPoint;
-        _channel = Channel.CreateUnbounded<string>();
-        _readingTask = RunReadingLoop();
-        _writingTask = RunWritingLoop();
+        this.client = client;
+        stream = client.GetStream();
+        remoteEndPoint = client.Client.RemoteEndPoint;
+        channel = Channel.CreateUnbounded<string>();
+        readingTask = RunReadingLoop();
+        writingTask = RunWritingLoop();
     }
 
     private async Task RunReadingLoop()
@@ -36,7 +36,7 @@ public class Connection : IDisposable
             byte[] headerBuffer = new byte[4];
             while (true)
             {
-                int bytesReceived = await _stream.ReadAsync(headerBuffer, 0, headerBuffer.Length);
+                int bytesReceived = await stream.ReadAsync(headerBuffer, 0, headerBuffer.Length);
                 if (bytesReceived != 4)
                     break;
                 int length = BinaryPrimitives.ReadInt32LittleEndian(headerBuffer);
@@ -44,18 +44,15 @@ public class Connection : IDisposable
                 int count = 0;
                 while (count < length)
                 {
-                    bytesReceived = await _stream.ReadAsync(buffer, count, buffer.Length - count);
+                    bytesReceived = await stream.ReadAsync(buffer, count, buffer.Length - count);
                     count += bytesReceived;
                 }
-                string message = Encoding.UTF8.GetString(buffer);
-                Console.WriteLine($"<< {_remoteEndPoint}: {message}");
             }
-            Console.WriteLine($"Сервер закрыл соединение.");
-            _stream.Close();
+            stream.Close();
         }
         catch (IOException)
         {
-            Console.WriteLine($"Подключение закрыто.");
+            Console.WriteLine($"Connection has been closed");
         }
         catch (Exception ex)
         {
@@ -65,18 +62,18 @@ public class Connection : IDisposable
 
     public async Task SendString(string message)
     {
-        await _channel.Writer.WriteAsync(message);
+        await channel.Writer.WriteAsync(message);
     }
 
     private async Task RunWritingLoop()
     {
         byte[] header = new byte[4];
-        await foreach (string message in _channel.Reader.ReadAllAsync())
+        await foreach (string message in channel.Reader.ReadAllAsync())
         {
             byte[] buffer = Encoding.UTF8.GetBytes(message);
             BinaryPrimitives.WriteInt32LittleEndian(header, buffer.Length);
-            await _stream.WriteAsync(header, 0, header.Length);
-            await _stream.WriteAsync(buffer, 0, buffer.Length);
+            await stream.WriteAsync(header, 0, header.Length);
+            await stream.WriteAsync(buffer, 0, buffer.Length);
         }
     }
 
@@ -91,16 +88,14 @@ public class Connection : IDisposable
         if (disposed)
             throw new ObjectDisposedException(GetType().FullName);
         disposed = true;
-        if (_client.Connected)
+        if (client.Connected)
         {
-            _channel.Writer.Complete();
-            _stream.Close();
-            Task.WaitAll(_readingTask, _writingTask);
+            channel.Writer.Complete();
+            stream.Close();
+            Task.WaitAll(readingTask, writingTask);
         }
         if (disposing)
-        {
-            _client.Dispose();
-        }
+            client.Dispose();
     }
 
     ~Connection() => Dispose(false);

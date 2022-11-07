@@ -9,16 +9,14 @@ using System.Threading.Tasks;
 namespace LightTCP.Server;
 public class Server : IDisposable
 {
-    public Server(int port, BitsEnum packetIDBitDepth, BitsEnum packetSizeBitDepth)
+    public Server(int port, Bits packetIDBitDepth)
     {
         listener = new TcpListener(IPAddress.Any, port);
         Clients = new List<Connection>();
         servertask = ListenAsync();
         PacketIDBitDepth = packetIDBitDepth;
-        PacketSizeBitDepth = packetSizeBitDepth;
     }
-    public readonly BitsEnum PacketIDBitDepth;
-    public readonly BitsEnum PacketSizeBitDepth;
+    public readonly Bits PacketIDBitDepth;
 
     private readonly TcpListener listener;
     public readonly List<Connection> Clients;

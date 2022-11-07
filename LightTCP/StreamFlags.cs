@@ -5,10 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace LightTCP;
-public class BitBuf
+public enum StreamFlags : byte
 {
-    public BitBuf()
-    {
-
-    }
+    Read,
+    Write,
+    ReadAndWrite
 }
