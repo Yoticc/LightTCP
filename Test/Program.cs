@@ -1,40 +1,32 @@
-﻿using LightTCP;
+﻿using Client;
+using LightTCP;
+using LightTCP.Server;
 using System.Collections;
+using System.Net;
+using System.Net.Sockets;
+using Connection = Client.Connection;
 
-/*
-WriteBitBuf w = new WriteBitBuf();
+int port = 8006;
+Server server = new Server(port, Bits.X8);
 
-long value = 100;
+TcpClient client = new TcpClient();
+client.Connect(new IPAddress(new byte[] { 127, 0, 0, 1 }, port), port);
+Connection con = new Connection(client);
 
-Console.WriteLine(value);
-
-w.WriteInt(value, BitsEnum.X12);
-
-byte[] bytes = w.AsBytes;
-
-ReadBitBuf r = new ReadBitBuf(bytes);
-
-Console.WriteLine(r.ReadInt(BitsEnum.X12));
-*/
 Ping ping = new Ping();
-
-List<byte[]> netPackets = BufSplitter.FromServerToClient(ping, Bits.X4);
 
 _ = 3;
 
-//[.... ,,,,] 
-//[,,,, ....]
-//[........] [........] [.... ||||]
-
-//Static:
-//[.... ,,,,]
-//[,,,,,,,,] [,,,,,,,,] [,,,, ||||]
-
-class Ping : OutPacket
+class Ping : Packet
 {
     public Ping() : base(0, 24) { }
-    public override void WritePacket(WriteBitBuf buf)
+    private ulong ping = 3;
+    public override void Write(WriteBitBuf buf)
     {
-        buf.WriteUInt(3, Bits.X24);
+        buf.WriteUInt(ping, Bits.X24);
+    }
+    public override void Read(ReadBitBuf buf)
+    {
+        ping = buf.ReadUInt(Bits.X24);
     }
 }
